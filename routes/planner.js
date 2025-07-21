@@ -1,11 +1,12 @@
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { generateAIContent } = require('../utils/openRouter');
 require('dotenv').config();
 
-// 🧠 AI Study Plan Generator
+// 📚 AI Study Plan Generator (POST /api/planner/generate)
 router.post('/generate', verifyToken, async (req, res) => {
   try {
     const { subjects, examDate } = req.body;
@@ -14,15 +15,7 @@ router.post('/generate', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Subjects and exam date are required' });
     }
 
-    const prompt = `You are an AI study planner.
-
-Create a day-wise study plan for the subjects: ${subjects}, with an exam on ${examDate}.
-Keep it balanced and realistic. Format:
-
-Day 1: Subject - Topic
-Day 2: Subject - Topic
-...etc
-`;
+    const prompt = `You are an AI study planner.\n\nCreate a day-wise study plan for the subjects: ${subjects}, with an exam on ${examDate}.\nKeep it balanced and realistic. Format:\n\nDay 1: Subject - Topic\nDay 2: Subject - Topic\n...etc`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -56,7 +49,7 @@ Day 2: Subject - Topic
 
     if (!plan || plan.trim() === '') {
       return res.status(500).json({
-        message: 'OpenRouter returned no content. Please try a different model or check your prompt.',
+        message: 'OpenRouter returned no content. Try a different model or adjust the prompt.',
       });
     }
 
@@ -68,19 +61,11 @@ Day 2: Subject - Topic
 });
 
 
-// ✅ Summary Generator
+// 📝 Summary Generator (POST /api/ai/summary)
 router.post('/summary', verifyToken, async (req, res) => {
   const { noteContent } = req.body;
-  console.log('🧾 Received summary request:', noteContent);
 
-  console.log('📥 Summary endpoint received noteContent:', noteContent);
-  console.log('📏 Length:', noteContent?.trim()?.length);
-
-  if (
-    !noteContent ||
-    typeof noteContent !== 'string' ||
-    noteContent.trim().length < 10
-  ) {
+  if (!noteContent || typeof noteContent !== 'string' || noteContent.trim().length < 10) {
     return res.status(400).json({
       error: 'Note content must be a valid string with at least 10 characters.',
     });
@@ -97,19 +82,11 @@ router.post('/summary', verifyToken, async (req, res) => {
 });
 
 
-// ✅ Quiz Generator
+// ❓ Quiz Generator (POST /api/ai/quiz)
 router.post('/quiz', verifyToken, async (req, res) => {
   const { noteContent } = req.body;
-  console.log('🧾 Received quizes request:', noteContent);
 
-  console.log('📥 Quiz endpoint received noteContent:', noteContent);
-  console.log('📏 Length:', noteContent?.trim()?.length);
-
-  if (
-    !noteContent ||
-    typeof noteContent !== 'string' ||
-    noteContent.trim().length < 10
-  ) {
+  if (!noteContent || typeof noteContent !== 'string' || noteContent.trim().length < 10) {
     return res.status(400).json({
       error: 'Note content must be a valid string with at least 10 characters.',
     });

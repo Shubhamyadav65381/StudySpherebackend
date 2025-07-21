@@ -1,6 +1,6 @@
 const express = require('express');
-const http = require('http'); // ✅ NEW
-const { Server } = require('socket.io'); // ✅ NEW
+const http = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
@@ -8,16 +8,36 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app); // ✅ Use http server
+const server = http.createServer(app);
+
+// ✅ Allow both local & deployed frontend origins
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://study-sphere-tau.vercel.app',
+];
+
+// ✅ CORS for REST API
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
+// ✅ Socket.io setup with CORS
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173', // ✅ Your frontend origin
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
 });
 
-// ✅ Basic socket setup
+// ✅ Socket events
 io.on('connection', (socket) => {
   console.log('🟢 Socket connected:', socket.id);
 
@@ -37,7 +57,6 @@ io.on('connection', (socket) => {
 });
 
 // ✅ Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
@@ -46,15 +65,15 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/notes', require('./routes/noteRoutes'));
 app.use('/api/user', require('./routes/dashboardRoutes'));
 app.use('/api/planner', require('./routes/planner'));
-app.use('/api/ai', require('./routes/planner'));
-app.use('/api/groups', require('./routes/groupRoutes')); // ✅ Must exist!
+app.use('/api/ai', require('./routes/planner')); // ✅ if shared or you can separate AI routes
+app.use('/api/groups', require('./routes/groupRoutes'));
 
-// ✅ DB connect
+// ✅ MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// ✅ Start the http server (not app.listen)
+// ✅ Server start
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

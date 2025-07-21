@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { verifyToken } = require('../middleware/auth');
+
 const Group = require('../models/Group');
 const Message = require('../models/Message');
 const User = require('../models/User');
@@ -13,8 +14,8 @@ router.post('/create', verifyToken, async (req, res) => {
   try {
     const group = new Group({
       name,
-      members: [...memberIds, req.user.id],
-      createdBy: req.user.id,
+      members: [...new Set([...memberIds, req.userId])], // Avoid duplicates
+      createdBy: req.userId,
     });
     await group.save();
     res.status(201).json(group);
@@ -27,14 +28,16 @@ router.post('/create', verifyToken, async (req, res) => {
 // ✅ Get all groups for logged-in user
 router.get('/my-groups', verifyToken, async (req, res) => {
   try {
-    const groups = await Group.find({ members: req.user.id }).populate('members', 'name email');
+    const groups = await Group.find({ members: req.userId })
+      .populate('members', 'name email');
     res.json(groups);
   } catch (err) {
+    console.error('❌ Error fetching user groups:', err.message);
     res.status(500).json({ error: 'Could not load groups' });
   }
 });
 
-// ✅ Send a message to a group
+// ✅ Send message in a group
 router.post('/message', verifyToken, async (req, res) => {
   const { groupId, content } = req.body;
 
@@ -45,7 +48,7 @@ router.post('/message', verifyToken, async (req, res) => {
   try {
     const message = new Message({
       group: groupId,
-      sender: req.user.id,
+      sender: req.userId,
       content,
     });
     await message.save();
@@ -75,7 +78,8 @@ router.get('/messages/:groupId', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Could not fetch messages' });
   }
 });
-// ✅ Get single group by ID
+
+// ✅ Get group by ID
 router.get('/:groupId', verifyToken, async (req, res) => {
   const { groupId } = req.params;
 
@@ -84,7 +88,9 @@ router.get('/:groupId', verifyToken, async (req, res) => {
   }
 
   try {
-    const group = await Group.findById(groupId).populate('members', 'name email');
+    const group = await Group.findById(groupId)
+      .populate('members', 'name email');
+
     if (!group) {
       return res.status(404).json({ error: 'Group not found' });
     }
@@ -95,6 +101,5 @@ router.get('/:groupId', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch group' });
   }
 });
-
 
 module.exports = router;
